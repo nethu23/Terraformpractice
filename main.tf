@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = var.region_name
 }
 
 # terraform {
@@ -12,53 +12,54 @@ provider "aws" {
 
 resource "aws_vpc" "vpc-learning" {
   enable_dns_hostnames = "true"
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.vpc_cidr_block
 
   tags = {
-    name = "vpc-learning"
+    name = var.vpc_tag
   }
 }
 resource "aws_internet_gateway" "IGW" {
   vpc_id = aws_vpc.vpc-learning.id
 
   tags = {
-    name = "IGW"
+    name = var.igw_tag
   }
 }
 resource "aws_subnet" "public-subnet-1" {
-  vpc_id     = aws_vpc.vpc-learning.id
-  cidr_block = "10.0.1.0/24"
+  vpc_id            = aws_vpc.vpc-learning.id
+  cidr_block        = var.subnet_cidr_block
+  availability_zone = var.subnet_az
 
   tags = {
-    name = "public-subnet-1"
+    name = var.subnet_tag
   }
 }
 
-resource "aws_subnet" "public-subnet-2" {
-  vpc_id     = aws_vpc.vpc-learning.id
-  cidr_block = "10.0.2.0/24"
+# resource "aws_subnet" "public-subnet-2" {
+#   vpc_id     = aws_vpc.vpc-learning.id
+#   cidr_block = "10.0.2.0/24"
 
-  tags = {
-    name = "public-subnet-2"
-  }
-}
-resource "aws_subnet" "public-subnet-3" {
-  vpc_id     = aws_vpc.vpc-learning.id
-  cidr_block = "10.0.3.0/24"
+#   tags = {
+#     name = "public-subnet-2"
+#   }
+# }
+# resource "aws_subnet" "public-subnet-3" {
+#   vpc_id     = aws_vpc.vpc-learning.id
+#   cidr_block = "10.0.3.0/24"
 
-  tags = {
-    name = "public-subnet-3"
-  }
-}
+#   tags = {
+#     name = "public-subnet-3"
+#   }
+# }
 resource "aws_route_table" "public-rt" {
   vpc_id = aws_vpc.vpc-learning.id
 
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block = var.rt_cidr_block
     gateway_id = aws_internet_gateway.IGW.id
   }
   tags = {
-    name = "public-rt"
+    name = var.rt_tag
   }
 }
 
@@ -94,5 +95,22 @@ resource "aws_security_group" "sg" {
   }
   tags = {
     name = "sg"
+  }
+}
+
+
+resource "aws_instance" "web-1" {
+  ami                         = "ami-0866a3c8686eaeeba"
+  availability_zone           = var.ec2_az
+  instance_type               = var.ec2_type
+  key_name                    = var.key_name
+  subnet_id                   = aws_subnet.public-subnet-1.id
+  vpc_security_group_ids      = ["${aws_security_group.sg.id}"]
+  associate_public_ip_address = true
+  tags = {
+    Name       = "Prod-Server"
+    Env        = "Prod"
+    Owner      = "nethu"
+    CostCenter = "ABCD"
   }
 }
