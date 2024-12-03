@@ -2,14 +2,13 @@ provider "aws" {
   region = var.region_name
 }
 
-# terraform {
-#   backend "S3" {
-#     name   = "bucket-name"
-#     key    = "file to path"
-#     region = "us-east-1"
-#   }
-# }
-
+terraform {
+  backend "s3" {
+    bucket = "nethu123445"
+    key    = "nethaji.statefile"
+    region = "us-east-1"
+  }
+}
 resource "aws_vpc" "vpc-learning" {
   enable_dns_hostnames = "true"
   cidr_block           = var.vpc_cidr_block
@@ -25,32 +24,33 @@ resource "aws_internet_gateway" "IGW" {
     name = var.igw_tag
   }
 }
-resource "aws_subnet" "public-subnet-1" {
+resource "aws_subnet" "subnet-1" {
   vpc_id            = aws_vpc.vpc-learning.id
-  cidr_block        = var.subnet_cidr_block
-  availability_zone = var.subnet_az
+  cidr_block        = var.public_subnet1_cidr
+  availability_zone = "us-east-1a"
 
   tags = {
     name = var.subnet_tag
   }
 }
 
-# resource "aws_subnet" "public-subnet-2" {
-#   vpc_id     = aws_vpc.vpc-learning.id
-#   cidr_block = "10.0.2.0/24"
+resource "aws_subnet" "subnet-2" {
+  vpc_id            = aws_vpc.vpc-learning.id
+  cidr_block        = var.public_subnet2_cidr
+  availability_zone = "us-east-1b"
 
-#   tags = {
-#     name = "public-subnet-2"
-#   }
-# }
-# resource "aws_subnet" "public-subnet-3" {
-#   vpc_id     = aws_vpc.vpc-learning.id
-#   cidr_block = "10.0.3.0/24"
-
-#   tags = {
-#     name = "public-subnet-3"
-#   }
-# }
+  tags = {
+    name = var.subnet2_tag
+  }
+}
+resource "aws_subnet" "subnet-3" {
+  vpc_id            = aws_vpc.vpc-learning.id
+  cidr_block        = var.public_subnet3_cidr
+  availability_zone = "us-east-1c"
+  tags = {
+    name = var.subnet3_tag
+  }
+}
 resource "aws_route_table" "public-rt" {
   vpc_id = aws_vpc.vpc-learning.id
 
@@ -64,7 +64,7 @@ resource "aws_route_table" "public-rt" {
 }
 
 resource "aws_route_table_association" "rta" {
-  subnet_id      = aws_subnet.public-subnet-1.id
+  subnet_id      = aws_subnet.subnet-1.id
   route_table_id = aws_route_table.public-rt.id
 }
 
@@ -101,10 +101,10 @@ resource "aws_security_group" "sg" {
 
 resource "aws_instance" "web-1" {
   ami                         = "ami-0866a3c8686eaeeba"
-  availability_zone           = var.ec2_az
-  instance_type               = var.ec2_type
-  key_name                    = var.key_name
-  subnet_id                   = aws_subnet.public-subnet-1.id
+  availability_zone           = "us-east-1a"
+  instance_type               = "t2.micro"
+  key_name                    = "kube"
+  subnet_id                   = aws_subnet.subnet-1.id
   vpc_security_group_ids      = ["${aws_security_group.sg.id}"]
   associate_public_ip_address = true
   tags = {
@@ -113,4 +113,14 @@ resource "aws_instance" "web-1" {
     Owner      = "nethu"
     CostCenter = "ABCD"
   }
+
+  user_data = <<-EOF
+     #!/bin/bash
+     	sudo apt-get update
+     	sudo apt-get install -y nginx
+     	echo "<h1>${var.env}-Server-1</h1>" | sudo tee /var/www/html/index.html
+     	sudo systemctl start nginx
+     	sudo systemctl enable nginx
+     EOF
+
 }
